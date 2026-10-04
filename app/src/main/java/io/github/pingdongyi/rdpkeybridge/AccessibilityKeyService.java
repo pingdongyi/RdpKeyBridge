@@ -23,7 +23,7 @@ import android.view.accessibility.AccessibilityEvent;
 public class AccessibilityKeyService extends AccessibilityService {
 
     private static final String TAG = "RdpKeyBridge/A11y";
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     private volatile String mFocusedPkg = "";
 
