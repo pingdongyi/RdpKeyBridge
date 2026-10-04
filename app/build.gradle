@@ -28,8 +28,8 @@ android {
         applicationId "io.github.pingdongyi.rdpkeybridge"
         minSdk 28
         targetSdk 35
-        versionCode 14
-        versionName "1.13"
+        versionCode 16
+        versionName "1.15"
     }
 
     compileOptions {
