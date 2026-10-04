@@ -28,8 +28,8 @@ android {
         applicationId "io.github.pingdongyi.rdpkeybridge"
         minSdk 28
         targetSdk 35
-        versionCode 15
-        versionName "1.14"
+        versionCode 14
+        versionName "1.13"
     }
 
     compileOptions {
@@ -43,7 +43,4 @@ dependencies {
     implementation libs.dexkit
     // DexKit 的 Kotlin API 需要 kotlin-stdlib 参与编译（其 POM 中为 runtime scope）
     implementation libs.kotlin.stdlib
-    // Shizuku：以 shell 身份读/改系统 AppOps（受限设置）与无障碍状态
-    implementation libs.shizuku.api
-    implementation libs.shizuku.provider
 }
