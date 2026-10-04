@@ -22,7 +22,7 @@ public class SettingsProvider extends ContentProvider {
 
     @Override
     public Bundle call(String method, String arg, Bundle extras) {
-        return Settings.load(getContext()).toBundle();
+        return Config.load(getContext()).toBundle();
     }
 
     @Override

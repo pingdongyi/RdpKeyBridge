@@ -5,7 +5,7 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 
 /** 模块配置。模块 App 直接读 SharedPreferences；目标进程通过 SettingsProvider 读取。 */
-public final class Settings {
+public final class Config {
 
     public static final String PREFS = "settings";
 
@@ -34,8 +34,8 @@ public final class Settings {
     public boolean imeFocus;
     public boolean imeWindow;
 
-    public static Settings defaults() {
-        Settings s = new Settings();
+    public static Config defaults() {
+        Config s = new Config();
         s.debug = false;
         s.captureEnabled = true;
         s.captureMeta = true;
@@ -50,8 +50,8 @@ public final class Settings {
         return s;
     }
 
-    public static Settings load(Context ctx) {
-        Settings d = defaults();
+    public static Config load(Context ctx) {
+        Config d = defaults();
         if (ctx == null) {
             return d;
         }
@@ -102,8 +102,8 @@ public final class Settings {
         return b;
     }
 
-    public static Settings fromBundle(Bundle b) {
-        Settings d = defaults();
+    public static Config fromBundle(Bundle b) {
+        Config d = defaults();
         if (b == null) {
             return d;
         }

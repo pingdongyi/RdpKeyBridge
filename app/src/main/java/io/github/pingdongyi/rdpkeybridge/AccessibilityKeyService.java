@@ -18,7 +18,7 @@ import android.view.accessibility.AccessibilityEvent;
  * 并把原始 KeyEvent 广播给被 patch 的目标应用进程。
  *
  * <p>吞掉 Win 后系统不再维护 metaState，所以这里自己维护修饰键状态并在转发前合成回事件。
- * 具体接管哪些键由 {@link Settings} 动态控制（见模块 App 界面）。
+ * 具体接管哪些键由 {@link Config} 动态控制（见模块 App 界面）。
  */
 public class AccessibilityKeyService extends AccessibilityService {
 
@@ -86,7 +86,7 @@ public class AccessibilityKeyService extends AccessibilityService {
             return false;
         }
 
-        Settings cfg = Settings.load(this);
+        Config cfg = Config.load(this);
         boolean captured = capture(event, cfg);
         if (cfg.debug || isModifier(keyCode)) {
             diag(event, captured);
@@ -121,7 +121,7 @@ public class AccessibilityKeyService extends AccessibilityService {
         }
     }
 
-    private boolean capture(KeyEvent e, Settings cfg) {
+    private boolean capture(KeyEvent e, Config cfg) {
         if (!cfg.captureEnabled) {
             return false;
         }

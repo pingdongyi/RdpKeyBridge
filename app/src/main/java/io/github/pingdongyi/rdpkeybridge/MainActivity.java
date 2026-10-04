@@ -81,7 +81,7 @@ public class MainActivity extends Activity {
     }
 
     private void load() {
-        Settings s = Settings.load(this);
+        Config s = Config.load(this);
         cbDebug.setChecked(s.debug);
         cbCapture.setChecked(s.captureEnabled);
         cbMeta.setChecked(s.captureMeta);
@@ -96,7 +96,7 @@ public class MainActivity extends Activity {
     }
 
     private void save() {
-        Settings s = Settings.defaults();
+        Config s = Config.defaults();
         s.debug = cbDebug.isChecked();
         s.captureEnabled = cbCapture.isChecked();
         s.captureMeta = cbMeta.isChecked();

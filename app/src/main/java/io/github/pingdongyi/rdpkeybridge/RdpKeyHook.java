@@ -39,7 +39,7 @@ public final class RdpKeyHook {
     private static volatile boolean sReceiverRegistered;
     private static volatile Context sAppContext;
 
-    private static volatile Settings sConfig;
+    private static volatile Config sConfig;
     private static volatile long sConfigTime;
 
     private RdpKeyHook() {
@@ -64,13 +64,13 @@ public final class RdpKeyHook {
     // 配置
     // ------------------------------------------------------------------
 
-    private static Settings config() {
+    private static Config config() {
         long now = SystemClock.uptimeMillis();
-        Settings cached = sConfig;
+        Config cached = sConfig;
         if (cached != null && now - sConfigTime < 2000L) {
             return cached;
         }
-        Settings cfg = Settings.defaults();
+        Config cfg = Config.defaults();
         try {
             Context ctx = sAppContext;
             if (ctx == null) {
@@ -84,7 +84,7 @@ public final class RdpKeyHook {
             if (ctx != null) {
                 Bundle b = ctx.getContentResolver().call(SettingsProvider.URI, "get", null, null);
                 if (b != null) {
-                    cfg = Settings.fromBundle(b);
+                    cfg = Config.fromBundle(b);
                 }
             }
         } catch (Throwable ignored) {
@@ -169,7 +169,7 @@ public final class RdpKeyHook {
                     android.util.AttributeSet.class, new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            Settings cfg = config();
+                            Config cfg = config();
                             if (!(cfg.imeSuppress && cfg.imeFocus)) {
                                 return;
                             }
@@ -204,7 +204,7 @@ public final class RdpKeyHook {
                         new XC_MethodHook() {
                             @Override
                             protected void beforeHookedMethod(MethodHookParam param) {
-                                Settings cfg = config();
+                                Config cfg = config();
                                 if (cfg.imeSuppress && cfg.imeViewExt
                                         && Boolean.TRUE.equals(param.args[1])) {
                                     param.setResult(null);
@@ -222,7 +222,7 @@ public final class RdpKeyHook {
         XC_MethodHook suppress = new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
-                Settings cfg = config();
+                Config cfg = config();
                 if (cfg.imeSuppress && cfg.imeShowSoftInput
                         && param.args.length > 0
                         && isForwardEditText(param.args[0], fwdClassName)) {
@@ -263,7 +263,7 @@ public final class RdpKeyHook {
                     new XC_MethodHook() {
                         @Override
                         protected void beforeHookedMethod(MethodHookParam param) {
-                            Settings cfg = config();
+                            Config cfg = config();
                             if (!(cfg.imeSuppress && cfg.imeWindow)) {
                                 return;
                             }
@@ -277,7 +277,7 @@ public final class RdpKeyHook {
                     new XC_MethodHook() {
                         @Override
                         protected void afterHookedMethod(MethodHookParam param) {
-                            Settings cfg = config();
+                            Config cfg = config();
                             if (!(cfg.imeSuppress && cfg.imeWindow)) {
                                 return;
                             }
