@@ -115,6 +115,36 @@ public final class RdpKeyHook {
             }
         }
         hookInputMethodManager(fwd);
+        hookViewExt(lp);
+    }
+
+    /**
+     * RDP 用 {@code com.microsoft.windowsapp.input.ext.ViewExtKt.a(View, boolean)}
+     * 通过 WindowInsetsControllerCompat 主动 show/hide 系统输入法（Android 14 走 WindowInsetsController，
+     * 所以 hook InputMethodManager 拦不住）。这里把该方法的 boolean 强制为 false（隐藏）。
+     */
+    private static void hookViewExt(XC_LoadPackage.LoadPackageParam lp) {
+        try {
+            Class<?> viewExt = XposedHelpers.findClass(
+                    "com.microsoft.windowsapp.input.ext.ViewExtKt", lp.classLoader);
+            for (final Method m : viewExt.getDeclaredMethods()) {
+                Class<?>[] p = m.getParameterTypes();
+                if (m.getReturnType() != void.class || p.length != 2
+                        || !p[0].equals(View.class) || !p[1].equals(boolean.class)) {
+                    continue;
+                }
+                XposedHelpers.findAndHookMethod(viewExt, m.getName(), View.class, boolean.class,
+                        new XC_MethodHook() {
+                            @Override
+                            protected void beforeHookedMethod(MethodHookParam param) {
+                                param.args[1] = false;
+                            }
+                        });
+                XposedBridge.log(TAG + ": hooked IME visibility " + viewExt.getName() + "#" + m.getName());
+            }
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": hook ViewExt failed: " + t);
+        }
     }
 
     private static void hookForwardEditText(Class<?> fwdClass) {

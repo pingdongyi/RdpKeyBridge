@@ -65,8 +65,10 @@
   [DexKit](https://github.com/LuckyPray/DexKit) 按方法签名结构查找，抗混淆/抗版本变动。
 - **修饰键**：因为吞掉了 `Win` 的 down，系统不再维护 metaState，所以无障碍服务自己维护
   `Meta/Alt/Ctrl/Shift` 状态，转发前用 `new KeyEvent(...)` 合成回事件，保证组合键正确。
-- **软键盘**：RDP 的隐形 `ForwardEditText` 聚焦会自动弹 IME，这里对它的
-  `setShowSoftInputOnFocus(false)` 做定向抑制（不影响 App 内其它对话框）。
+- **软键盘**：RDP 会通过 `com.microsoft.windowsapp.input.ext.ViewExtKt.a(View, boolean)` →
+  `WindowInsetsControllerCompat.show(Type.ime())` 主动唤起系统输入法（Android 14 走 `WindowInsetsController`，
+  所以 hook `InputMethodManager` 拦不住）。这里强制走 hide 分支，并对其隐形 `ForwardEditText` 设
+  `setShowSoftInputOnFocus(false)`。
 
 ## 🏗️ 构建
 
