@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">RDP 键盘桥</string>
+    <string name="a11y_desc">在远程桌面应用前台时接管 Win / Alt+Tab 等被系统拦截的快捷键，并转发给远端</string>
+    <string name="btn_open_a11y">打开无障碍设置</string>
+    <string name="status_on">无障碍服务：已开启 ✅</string>
+    <string name="status_off">无障碍服务：未开启 ❌\n请点击下方按钮，在「已下载的应用」中找到「RDP 键盘桥」并开启</string>
+    <string name="hint">用法：\n1. 开启无障碍服务\n2. 用 LSPatch 给「Windows App / Microsoft 远程桌面」打补丁并勾选本模块\n3. 打开远程桌面，外接键盘即可使用 Win / Alt+Tab 等快捷键</string>
+</resources>

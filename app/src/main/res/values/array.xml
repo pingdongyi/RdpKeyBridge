@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="xposed_scope">
+        <item>com.microsoft.rdc.androidx</item>
+        <item>com.microsoft.rdc.android</item>
+    </string-array>
+</resources>

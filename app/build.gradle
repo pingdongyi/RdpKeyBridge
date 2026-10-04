@@ -1,0 +1,44 @@
+plugins {
+    alias(libs.plugins.android.application)
+}
+
+android {
+
+    signingConfigs {
+        release {
+            storeFile file('../keystore/rdpkeybridge.jks')
+            storePassword 'rdpkeybridge'
+            keyAlias 'rdpkeybridge'
+            keyPassword 'rdpkeybridge'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+    }
+
+    namespace 'io.github.pingdongyi.rdpkeybridge'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "io.github.pingdongyi.rdpkeybridge"
+        minSdk 28
+        targetSdk 35
+        versionCode 1
+        versionName "1.0"
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+dependencies {
+    compileOnly 'de.robv.android.xposed:api:82'
+    implementation libs.dexkit
+}
