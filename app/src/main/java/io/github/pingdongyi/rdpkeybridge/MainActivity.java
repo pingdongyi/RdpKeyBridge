@@ -2,6 +2,7 @@ package io.github.pingdongyi.rdpkeybridge;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.widget.Button;
@@ -43,6 +44,23 @@ public class MainActivity extends Activity {
             }
         });
         root.addView(a11y);
+
+        Button appInfo = new Button(this);
+        appInfo.setText("打开「应用信息」（如需『允许受限设置』）");
+        appInfo.setOnClickListener(v -> {
+            try {
+                Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                i.setData(Uri.parse("package:" + getPackageName()));
+                startActivity(i);
+            } catch (Throwable ignored) {
+            }
+        });
+        root.addView(appInfo);
+
+        TextView a11yHint = new TextView(this);
+        a11yHint.setText("提示：Android 13+ 侧载应用的无障碍服务可能受「受限设置」限制。"
+                + "若开启后又被自动关闭，请到「应用信息」右上角菜单点『允许受限设置』，再重新开启无障碍。");
+        root.addView(a11yHint);
 
         root.addView(divider("按键接管"));
         cbCapture = add(root, "启用按键接管（总开关）");
