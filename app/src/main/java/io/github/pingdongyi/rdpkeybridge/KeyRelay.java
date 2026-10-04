@@ -1,7 +1,5 @@
 package io.github.pingdongyi.rdpkeybridge;
 
-import android.view.KeyEvent;
-
 /** 无障碍服务与目标应用进程之间的按键中转协议。 */
 public final class KeyRelay {
 
@@ -40,37 +38,5 @@ public final class KeyRelay {
             }
         }
         return false;
-    }
-
-    /**
-     * 判断是否是会被系统拦截、需要接管的按键：
-     * 单独 Win(Meta)、按住 Win 时的任意键、Alt+Tab、Alt+Esc、Alt+Space、Alt+Enter、Alt+F4。
-     */
-    public static boolean isTargetKey(KeyEvent e) {
-        if (e == null) {
-            return false;
-        }
-        int kc = e.getKeyCode();
-        int meta = e.getMetaState();
-        if (kc == KeyEvent.KEYCODE_META_LEFT || kc == KeyEvent.KEYCODE_META_RIGHT) {
-            return true;
-        }
-        if ((meta & KeyEvent.META_META_ON) != 0) {
-            return true;
-        }
-        boolean alt = (meta & KeyEvent.META_ALT_ON) != 0;
-        if (!alt) {
-            return false;
-        }
-        switch (kc) {
-            case KeyEvent.KEYCODE_TAB:
-            case KeyEvent.KEYCODE_ESCAPE:
-            case KeyEvent.KEYCODE_SPACE:
-            case KeyEvent.KEYCODE_ENTER:
-            case KeyEvent.KEYCODE_F4:
-                return true;
-            default:
-                return false;
-        }
     }
 }

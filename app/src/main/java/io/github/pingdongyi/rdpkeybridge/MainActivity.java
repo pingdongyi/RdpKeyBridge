@@ -63,7 +63,7 @@ public class MainActivity extends Activity {
         root.addView(mKbInfo);
 
         TextView imeHint = new TextView(this);
-        imeHint.setText("这是 ColorOS 自带输入法接管外接键盘导致的，模块无法拦截。\n"
+        imeHint.setText("部分设备的系统自带输入法会在接管外接键盘时弹出悬浮窗，属于系统/输入法行为，模块无法拦截。\n"
                 + "解决办法：换一个第三方输入法（如 Gboard）即可不再弹悬浮窗；\n"
                 + "也可在下方「物理键盘设置」里关闭「显示虚拟键盘」。");
         root.addView(imeHint);
