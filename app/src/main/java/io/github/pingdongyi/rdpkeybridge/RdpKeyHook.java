@@ -80,10 +80,26 @@ public final class RdpKeyHook {
             }
         };
         IntentFilter filter = new IntentFilter(KeyRelay.ACTION);
+        IntentFilter diagFilter = new IntentFilter(KeyRelay.ACTION_DIAG);
+        BroadcastReceiver diagReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (intent == null) {
+                    return;
+                }
+                XposedBridge.log(TAG + " [a11y] key="
+                        + intent.getIntExtra(KeyRelay.EXTRA_CODE, -1)
+                        + " down=" + intent.getBooleanExtra(KeyRelay.EXTRA_DOWN, false)
+                        + " meta=" + intent.getIntExtra(KeyRelay.EXTRA_META, 0)
+                        + " captured=" + intent.getBooleanExtra(KeyRelay.EXTRA_CAPTURED, false));
+            }
+        };
         try {
             app.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
+            app.registerReceiver(diagReceiver, diagFilter, Context.RECEIVER_EXPORTED);
         } catch (Throwable t) {
             app.registerReceiver(receiver, filter);
+            app.registerReceiver(diagReceiver, diagFilter);
         }
     }
 
