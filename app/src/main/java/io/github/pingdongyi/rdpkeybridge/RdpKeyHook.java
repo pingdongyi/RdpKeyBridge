@@ -1,13 +1,14 @@
 package io.github.pingdongyi.rdpkeybridge;
 
-import android.app.Activity;
 import android.app.Application;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
@@ -24,17 +25,22 @@ import de.robv.android.xposed.callbacks.XC_LoadPackage;
 /**
  * 运行在被 patch 的目标应用进程里：
  * 1. 捕获 RDP 客户端的按键转发监听器，收到无障碍服务广播后把按键注入回去；
- * 2. 阻止远程会话的隐形 EditText 自动唤起系统输入法（软键盘）。
+ * 2. 按配置抑制远程会话的软键盘。
+ *
+ * <p>配置通过 {@link SettingsProvider} 从模块 App 读取（跨进程），2 秒缓存。
  */
 public final class RdpKeyHook {
 
     private static final String TAG = "RdpKeyBridge";
-    private static final boolean DEBUG = false;
 
     private static final Handler MAIN = new Handler(Looper.getMainLooper());
 
     private static volatile Object sListener;
     private static volatile boolean sReceiverRegistered;
+    private static volatile Context sAppContext;
+
+    private static volatile Settings sConfig;
+    private static volatile long sConfigTime;
 
     private RdpKeyHook() {
     }
@@ -52,6 +58,40 @@ public final class RdpKeyHook {
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": install failed: " + t);
         }
+    }
+
+    // ------------------------------------------------------------------
+    // 配置
+    // ------------------------------------------------------------------
+
+    private static Settings config() {
+        long now = SystemClock.uptimeMillis();
+        Settings cached = sConfig;
+        if (cached != null && now - sConfigTime < 2000L) {
+            return cached;
+        }
+        Settings cfg = Settings.defaults();
+        try {
+            Context ctx = sAppContext;
+            if (ctx == null) {
+                ctx = (Context) XposedHelpers.callStaticMethod(
+                        XposedHelpers.findClass("android.app.ActivityThread", null),
+                        "currentApplication");
+                if (ctx != null) {
+                    sAppContext = ctx;
+                }
+            }
+            if (ctx != null) {
+                Bundle b = ctx.getContentResolver().call(SettingsProvider.URI, "get", null, null);
+                if (b != null) {
+                    cfg = Settings.fromBundle(b);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        sConfig = cfg;
+        sConfigTime = now;
+        return cfg;
     }
 
     // ------------------------------------------------------------------
@@ -89,10 +129,11 @@ public final class RdpKeyHook {
                     + ", method=" + (method != null) + ")");
             return;
         }
+        final boolean debug = config().debug;
         MAIN.post(() -> {
             try {
                 method.invoke(listener, event.getKeyCode(), event, down);
-                if (DEBUG) {
+                if (debug) {
                     XposedBridge.log(TAG + ": injected key=" + event.getKeyCode() + " down=" + down);
                 }
             } catch (Throwable t) {
@@ -102,7 +143,7 @@ public final class RdpKeyHook {
     }
 
     // ------------------------------------------------------------------
-    // 软键盘抑制（远程会话的隐形 EditText 获得焦点时不应弹输入法）
+    // 软键盘抑制
     // ------------------------------------------------------------------
 
     private static void hookIme(XC_LoadPackage.LoadPackageParam lp) {
@@ -119,12 +160,35 @@ public final class RdpKeyHook {
         }
         hookInputMethodManager(fwd);
         hookViewExt(lp);
+        hookSoftInputMode();
+    }
+
+    private static void hookForwardEditText(Class<?> fwdClass) {
+        try {
+            XposedHelpers.findAndHookConstructor(fwdClass, Context.class,
+                    android.util.AttributeSet.class, new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            Settings cfg = config();
+                            if (!(cfg.imeSuppress && cfg.imeFocus)) {
+                                return;
+                            }
+                            try {
+                                // callMethod 会向上查找父类（setShowSoftInputOnFocus 在 TextView 上）
+                                XposedHelpers.callMethod(param.thisObject,
+                                        "setShowSoftInputOnFocus", false);
+                            } catch (Throwable ignored) {
+                            }
+                        }
+                    });
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": hook ForwardEditText ctor failed: " + t);
+        }
     }
 
     /**
      * RDP 用 {@code com.microsoft.windowsapp.input.ext.ViewExtKt.a(View, boolean)}
-     * 通过 WindowInsetsControllerCompat 主动 show/hide 系统输入法（boolean=true=show，
-     * 内部走 WindowInsetsController.show(Type.ime())）。这里在 show 时直接跳过该方法。
+     * 通过 WindowInsetsControllerCompat 主动 show/hide 系统输入法（boolean=true=show）。
      */
     private static void hookViewExt(XC_LoadPackage.LoadPackageParam lp) {
         try {
@@ -140,8 +204,9 @@ public final class RdpKeyHook {
                         new XC_MethodHook() {
                             @Override
                             protected void beforeHookedMethod(MethodHookParam param) {
-                                if (Boolean.TRUE.equals(param.args[1])) {
-                                    // 想显示输入法 -> 直接不执行
+                                Settings cfg = config();
+                                if (cfg.imeSuppress && cfg.imeViewExt
+                                        && Boolean.TRUE.equals(param.args[1])) {
                                     param.setResult(null);
                                 }
                             }
@@ -153,69 +218,14 @@ public final class RdpKeyHook {
         }
     }
 
-    /**
-     * 强制窗口的 softInputMode 为 stateAlwaysHidden。
-     * 注意：这是全 App 级改动，容易引入回归，默认关闭。
-     */
-    @SuppressWarnings("unused")
-    private static void hookSoftInputMode() {
-        try {
-            XposedHelpers.findAndHookMethod(Window.class, "setSoftInputMode", int.class,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            int mode = (Integer) param.args[0];
-                            mode = (mode & ~0xF) | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN;
-                            param.args[0] = mode;
-                        }
-                    });
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + ": hook setSoftInputMode failed: " + t);
-        }
-        try {
-            XposedHelpers.findAndHookMethod(Activity.class, "onResume", new XC_MethodHook() {
-                @Override
-                protected void afterHookedMethod(MethodHookParam param) {
-                    try {
-                        Activity a = (Activity) param.thisObject;
-                        a.getWindow().setSoftInputMode(
-                                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
-                    } catch (Throwable ignored) {
-                    }
-                }
-            });
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + ": hook Activity.onResume failed: " + t);
-        }
-    }
-
-    private static void hookForwardEditText(Class<?> fwdClass) {
-        // 1) 构造后强制关闭"聚焦即弹软键盘"
-        try {
-            XposedHelpers.findAndHookConstructor(fwdClass, Context.class,
-                    android.util.AttributeSet.class, new XC_MethodHook() {
-                        @Override
-                        protected void afterHookedMethod(MethodHookParam param) {
-                            try {
-                                XposedHelpers.callMethod(param.thisObject,
-                                        "setShowSoftInputOnFocus", false);
-                            } catch (Throwable ignored) {
-                            }
-                        }
-                    });
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + ": hook ForwardEditText ctor failed: " + t);
-        }
-        // 2) App 里没有任何地方调用 setShowSoftInputOnFocus，默认 true；
-        //    构造后主动置 false 即可（callMethod 会向上查找父类，能命中 TextView 的实现）
-        //    注意：不能用 findAndHookMethod 直接 hook，否则会 NoSuchMethodError（声明在 TextView 上）
-    }
-
     private static void hookInputMethodManager(final String fwdClassName) {
         XC_MethodHook suppress = new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) {
-                if (param.args.length > 0 && isForwardEditText(param.args[0], fwdClassName)) {
+                Settings cfg = config();
+                if (cfg.imeSuppress && cfg.imeShowSoftInput
+                        && param.args.length > 0
+                        && isForwardEditText(param.args[0], fwdClassName)) {
                     param.setResult(false);
                 }
             }
@@ -246,6 +256,44 @@ public final class RdpKeyHook {
         return false;
     }
 
+    /** 全 App 级窗口 softInputMode 强制（较重，默认关闭，可在界面开启）。 */
+    private static void hookSoftInputMode() {
+        try {
+            XposedHelpers.findAndHookMethod(Window.class, "setSoftInputMode", int.class,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            Settings cfg = config();
+                            if (!(cfg.imeSuppress && cfg.imeWindow)) {
+                                return;
+                            }
+                            int mode = (Integer) param.args[0];
+                            mode = (mode & ~0xF)
+                                    | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN;
+                            param.args[0] = mode;
+                        }
+                    });
+            XposedHelpers.findAndHookMethod(android.app.Activity.class, "onResume",
+                    new XC_MethodHook() {
+                        @Override
+                        protected void afterHookedMethod(MethodHookParam param) {
+                            Settings cfg = config();
+                            if (!(cfg.imeSuppress && cfg.imeWindow)) {
+                                return;
+                            }
+                            try {
+                                ((android.app.Activity) param.thisObject).getWindow()
+                                        .setSoftInputMode(WindowManager.LayoutParams
+                                                .SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+                            } catch (Throwable ignored) {
+                            }
+                        }
+                    });
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": hook softInputMode failed: " + t);
+        }
+    }
+
     // ------------------------------------------------------------------
     // 广播接收
     // ------------------------------------------------------------------
@@ -256,6 +304,7 @@ public final class RdpKeyHook {
                 @Override
                 protected void afterHookedMethod(MethodHookParam param) {
                     try {
+                        sAppContext = (Application) param.thisObject;
                         registerReceiver((Application) param.thisObject);
                     } catch (Throwable t) {
                         XposedBridge.log(TAG + ": registerReceiver failed: " + t);
@@ -290,7 +339,6 @@ public final class RdpKeyHook {
                 if (intent == null) {
                     return;
                 }
-                // diag 只会在「目标前台 + 修饰键」或 DEBUG 时发送
                 XposedBridge.log(TAG + " [a11y] key="
                         + intent.getIntExtra(KeyRelay.EXTRA_CODE, -1)
                         + " down=" + intent.getBooleanExtra(KeyRelay.EXTRA_DOWN, false)
@@ -298,14 +346,25 @@ public final class RdpKeyHook {
                         + " captured=" + intent.getBooleanExtra(KeyRelay.EXTRA_CAPTURED, false));
             }
         };
+        // 收到任意广播时刷新一次配置
+        BroadcastReceiver settingsReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                sConfigTime = 0L;
+                config();
+            }
+        };
         IntentFilter filter = new IntentFilter(KeyRelay.ACTION);
         IntentFilter diagFilter = new IntentFilter(KeyRelay.ACTION_DIAG);
+        IntentFilter settingsFilter = new IntentFilter(KeyRelay.ACTION_SETTINGS_CHANGED);
         try {
             app.registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
             app.registerReceiver(diagReceiver, diagFilter, Context.RECEIVER_EXPORTED);
+            app.registerReceiver(settingsReceiver, settingsFilter, Context.RECEIVER_EXPORTED);
         } catch (Throwable t) {
             app.registerReceiver(receiver, filter);
             app.registerReceiver(diagReceiver, diagFilter);
+            app.registerReceiver(settingsReceiver, settingsFilter);
         }
     }
 }

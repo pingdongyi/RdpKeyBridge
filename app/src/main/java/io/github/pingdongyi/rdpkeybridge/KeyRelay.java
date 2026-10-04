@@ -10,6 +10,10 @@ public final class KeyRelay {
     /** 广播 action：诊断用，只记录不注入。 */
     public static final String ACTION_DIAG = "io.github.pingdongyi.rdpkeybridge.DIAG_KEY";
 
+    /** 广播 action：配置变更通知（目标进程收到后刷新缓存）。 */
+    public static final String ACTION_SETTINGS_CHANGED =
+            "io.github.pingdongyi.rdpkeybridge.SETTINGS_CHANGED";
+
     public static final String EXTRA_EVENT = "key_event";
     public static final String EXTRA_DOWN = "is_down";
     public static final String EXTRA_CODE = "key_code";

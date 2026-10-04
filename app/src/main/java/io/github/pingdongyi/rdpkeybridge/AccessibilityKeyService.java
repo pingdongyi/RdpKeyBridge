@@ -14,16 +14,15 @@ import android.view.accessibility.AccessibilityEvent;
  * 无障碍按键过滤服务。
  *
  * <p>Android 14 起 {@link AccessibilityService#onKeyEvent(KeyEvent)} 返回 boolean，
- * 返回 true 表示消费该按键（不再下发给系统），我们借此阻止系统把
- * Win / Alt+Tab 变成"最近任务"，并把原始 KeyEvent 广播给被 patch 的目标应用进程。
+ * 返回 true 表示消费该按键，我们借此阻止系统把 Win / Alt+Tab 变成"最近任务"，
+ * 并把原始 KeyEvent 广播给被 patch 的目标应用进程。
  *
- * <p>因为吞掉了 Win(Meta) 的 down，系统不再维护 metaState，所以这里自己维护
- * Meta/Alt/Ctrl/Shift 状态，并在转发前把修饰位合成回 KeyEvent，保证组合键正确。
+ * <p>吞掉 Win 后系统不再维护 metaState，所以这里自己维护修饰键状态并在转发前合成回事件。
+ * 具体接管哪些键由 {@link Settings} 动态控制（见模块 App 界面）。
  */
 public class AccessibilityKeyService extends AccessibilityService {
 
     private static final String TAG = "RdpKeyBridge/A11y";
-    private static final boolean DEBUG = false;
 
     private volatile String mFocusedPkg = "";
 
@@ -83,14 +82,13 @@ public class AccessibilityKeyService extends AccessibilityService {
         int keyCode = event.getKeyCode();
         updateModifiers(keyCode, down);
 
-        boolean target = KeyRelay.isTarget(mFocusedPkg);
-        if (!target) {
+        if (!KeyRelay.isTarget(mFocusedPkg)) {
             return false;
         }
 
-        boolean captured = capture(event);
-        // 诊断：修饰键（Shift/Alt/Ctrl/Win）总是记录，其余键仅在 DEBUG 下记录
-        if (DEBUG || isModifier(keyCode)) {
+        Settings cfg = Settings.load(this);
+        boolean captured = capture(event, cfg);
+        if (cfg.debug || isModifier(keyCode)) {
             diag(event, captured);
         }
         if (captured) {
@@ -98,22 +96,6 @@ public class AccessibilityKeyService extends AccessibilityService {
             return true;
         }
         return false;
-    }
-
-    private static boolean isModifier(int keyCode) {
-        switch (keyCode) {
-            case KeyEvent.KEYCODE_SHIFT_LEFT:
-            case KeyEvent.KEYCODE_SHIFT_RIGHT:
-            case KeyEvent.KEYCODE_ALT_LEFT:
-            case KeyEvent.KEYCODE_ALT_RIGHT:
-            case KeyEvent.KEYCODE_CTRL_LEFT:
-            case KeyEvent.KEYCODE_CTRL_RIGHT:
-            case KeyEvent.KEYCODE_META_LEFT:
-            case KeyEvent.KEYCODE_META_RIGHT:
-                return true;
-            default:
-                return false;
-        }
     }
 
     private void updateModifiers(int keyCode, boolean down) {
@@ -139,12 +121,48 @@ public class AccessibilityKeyService extends AccessibilityService {
         }
     }
 
-    private boolean capture(KeyEvent e) {
-        // 目标组合键 或 按住 Win 时的任意键
-        return KeyRelay.isTargetKey(e) || mMeta;
+    private boolean capture(KeyEvent e, Settings cfg) {
+        if (!cfg.captureEnabled) {
+            return false;
+        }
+        int kc = e.getKeyCode();
+        int meta = e.getMetaState();
+
+        if (cfg.captureMeta) {
+            if (kc == KeyEvent.KEYCODE_META_LEFT || kc == KeyEvent.KEYCODE_META_RIGHT) {
+                return true;
+            }
+            if ((meta & KeyEvent.META_META_ON) != 0) {
+                return true;
+            }
+            if (mMeta) {
+                return true;
+            }
+        }
+        if (cfg.captureShift
+                && (kc == KeyEvent.KEYCODE_SHIFT_LEFT || kc == KeyEvent.KEYCODE_SHIFT_RIGHT)) {
+            return true;
+        }
+        if ((meta & KeyEvent.META_ALT_ON) != 0) {
+            if (cfg.captureAltTab && kc == KeyEvent.KEYCODE_TAB) {
+                return true;
+            }
+            if (cfg.captureAltSpecial) {
+                switch (kc) {
+                    case KeyEvent.KEYCODE_ESCAPE:
+                    case KeyEvent.KEYCODE_SPACE:
+                    case KeyEvent.KEYCODE_ENTER:
+                    case KeyEvent.KEYCODE_F4:
+                        return true;
+                    default:
+                        break;
+                }
+            }
+        }
+        return false;
     }
 
-    /** 把已跟踪的修饰键状态合成回事件，解决"吞掉 Win 后系统不再维护 metaState"的问题。 */
+    /** 把已跟踪的修饰键状态合成回事件。 */
     private KeyEvent synth(KeyEvent e) {
         int meta = e.getMetaState();
         meta = mMeta ? (meta | KeyEvent.META_META_ON) : (meta & ~KeyEvent.META_META_ON);
@@ -156,6 +174,22 @@ public class AccessibilityKeyService extends AccessibilityService {
         }
         return new KeyEvent(e.getDownTime(), e.getEventTime(), e.getAction(), e.getKeyCode(),
                 e.getRepeatCount(), meta, e.getDeviceId(), e.getScanCode(), e.getFlags(), e.getSource());
+    }
+
+    private static boolean isModifier(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_SHIFT_LEFT:
+            case KeyEvent.KEYCODE_SHIFT_RIGHT:
+            case KeyEvent.KEYCODE_ALT_LEFT:
+            case KeyEvent.KEYCODE_ALT_RIGHT:
+            case KeyEvent.KEYCODE_CTRL_LEFT:
+            case KeyEvent.KEYCODE_CTRL_RIGHT:
+            case KeyEvent.KEYCODE_META_LEFT:
+            case KeyEvent.KEYCODE_META_RIGHT:
+                return true;
+            default:
+                return false;
+        }
     }
 
     private void relay(KeyEvent e, boolean down) {
