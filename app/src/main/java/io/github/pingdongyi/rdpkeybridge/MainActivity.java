@@ -214,7 +214,7 @@ public class MainActivity extends Activity {
                 Toast.makeText(this, "请先授予 Shizuku 权限，再点一次", Toast.LENGTH_LONG).show();
                 return;
             }
-            Process p = Shizuku.newProcess(new String[]{"sh", "-c", command}, null, null);
+            Process p = newProcess(command);
             int code = p.waitFor();
             Toast.makeText(this, code == 0 ? "执行成功" : ("执行失败 code=" + code),
                     Toast.LENGTH_SHORT).show();
@@ -222,6 +222,19 @@ public class MainActivity extends Activity {
         } catch (Throwable t) {
             Toast.makeText(this, "执行失败：" + t, Toast.LENGTH_LONG).show();
         }
+    }
+
+    /**
+     * 以 Shizuku 身份（shell/root）执行命令。
+     *
+     * <p>{@code Shizuku.newProcess} 在 13.x 里是 private（且标记 deprecated），
+     * 但 Shizuku API 是打包进本 App 的类，可以用反射调用（API 14 移除后需换 transactRemote）。
+     */
+    private Process newProcess(String command) throws Exception {
+        java.lang.reflect.Method m = Shizuku.class.getDeclaredMethod(
+                "newProcess", String[].class, String[].class, String.class);
+        m.setAccessible(true);
+        return (Process) m.invoke(null, new String[]{"sh", "-c", command}, null, null);
     }
 
     private void refreshStatus() {
