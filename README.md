@@ -63,12 +63,24 @@
 
 - **注入点定位**：`KeyFinder` 优先用可读类名反射匹配，失败时用
   [DexKit](https://github.com/LuckyPray/DexKit) 按方法签名结构查找，抗混淆/抗版本变动。
-- **修饰键**：因为吞掉了 `Win` 的 down，系统不再维护 metaState，所以无障碍服务自己维护
+- **修饰键**：因为吞掉了 `Win` 的 Shift/Meta down，系统不再维护 metaState，所以无障碍服务自己维护
   `Meta/Alt/Ctrl/Shift` 状态，转发前用 `new KeyEvent(...)` 合成回事件，保证组合键正确。
-- **软键盘**：RDP 会通过 `com.microsoft.windowsapp.input.ext.ViewExtKt.a(View, boolean)` →
-  `WindowInsetsControllerCompat.show(Type.ime())` 主动唤起系统输入法（Android 14 走 `WindowInsetsController`，
-  所以 hook `InputMethodManager` 拦不住）。这里强制走 hide 分支，并对其隐形 `ForwardEditText` 设
-  `setShowSoftInputOnFocus(false)`。
+
+## ⌨️ 外接键盘时不再弹软键盘
+
+Android 有个系统安全设置 **`show_ime_with_hard_keyboard`**：它为 `1` 时，系统会在外接键盘、
+又有可编辑控件聚焦时**自动弹出虚拟键盘**。该判断发生在 **system_server**，App 端 Hook 拦不住。
+
+模块 App 里提供了：
+- 显示该设置当前值
+- 通过 **Shizuku** 一键设为 `0`（打开 App 会自动申请 Shizuku 权限）
+- 跳转「物理键盘设置」手动关闭
+
+也可以直接用 ADB：
+
+```bash
+adb shell settings put secure show_ime_with_hard_keyboard 0
+```
 
 ## 🏗️ 构建
 
@@ -92,6 +104,7 @@
 
 - [LSPatch](https://github.com/JingMatrix/LSPatch) — 免 Root 的 Xposed 框架
 - [DexKit](https://github.com/LuckyPray/DexKit) — 运行时 dex 查询
+- [Shizuku](https://github.com/RikkaApps/Shizuku) — 以 shell/root 身份执行系统设置
 
 ## 🛡️ 免责声明
 

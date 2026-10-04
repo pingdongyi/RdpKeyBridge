@@ -16,11 +16,6 @@ public final class Config {
     public static final String K_ALT_TAB = "capture_alt_tab";
     public static final String K_ALT_SPECIAL = "capture_alt_special";
     public static final String K_SHIFT = "capture_shift";
-    public static final String K_IME = "ime_suppress";
-    public static final String K_IME_VIEWEXT = "ime_viewext";
-    public static final String K_IME_SHOW = "ime_showsoftinput";
-    public static final String K_IME_FOCUS = "ime_focus";
-    public static final String K_IME_WINDOW = "ime_window";
 
     public boolean debug;
     public boolean captureEnabled;
@@ -28,11 +23,6 @@ public final class Config {
     public boolean captureAltTab;
     public boolean captureAltSpecial;
     public boolean captureShift;
-    public boolean imeSuppress;
-    public boolean imeViewExt;
-    public boolean imeShowSoftInput;
-    public boolean imeFocus;
-    public boolean imeWindow;
 
     public static Config defaults() {
         Config s = new Config();
@@ -42,11 +32,6 @@ public final class Config {
         s.captureAltTab = true;
         s.captureAltSpecial = true;
         s.captureShift = true;
-        s.imeSuppress = true;
-        s.imeViewExt = true;
-        s.imeShowSoftInput = true;
-        s.imeFocus = true;
-        s.imeWindow = false;
         return s;
     }
 
@@ -62,11 +47,6 @@ public final class Config {
         d.captureAltTab = sp.getBoolean(K_ALT_TAB, d.captureAltTab);
         d.captureAltSpecial = sp.getBoolean(K_ALT_SPECIAL, d.captureAltSpecial);
         d.captureShift = sp.getBoolean(K_SHIFT, d.captureShift);
-        d.imeSuppress = sp.getBoolean(K_IME, d.imeSuppress);
-        d.imeViewExt = sp.getBoolean(K_IME_VIEWEXT, d.imeViewExt);
-        d.imeShowSoftInput = sp.getBoolean(K_IME_SHOW, d.imeShowSoftInput);
-        d.imeFocus = sp.getBoolean(K_IME_FOCUS, d.imeFocus);
-        d.imeWindow = sp.getBoolean(K_IME_WINDOW, d.imeWindow);
         return d;
     }
 
@@ -78,11 +58,6 @@ public final class Config {
         e.putBoolean(K_ALT_TAB, captureAltTab);
         e.putBoolean(K_ALT_SPECIAL, captureAltSpecial);
         e.putBoolean(K_SHIFT, captureShift);
-        e.putBoolean(K_IME, imeSuppress);
-        e.putBoolean(K_IME_VIEWEXT, imeViewExt);
-        e.putBoolean(K_IME_SHOW, imeShowSoftInput);
-        e.putBoolean(K_IME_FOCUS, imeFocus);
-        e.putBoolean(K_IME_WINDOW, imeWindow);
         e.apply();
     }
 
@@ -94,11 +69,6 @@ public final class Config {
         b.putBoolean(K_ALT_TAB, captureAltTab);
         b.putBoolean(K_ALT_SPECIAL, captureAltSpecial);
         b.putBoolean(K_SHIFT, captureShift);
-        b.putBoolean(K_IME, imeSuppress);
-        b.putBoolean(K_IME_VIEWEXT, imeViewExt);
-        b.putBoolean(K_IME_SHOW, imeShowSoftInput);
-        b.putBoolean(K_IME_FOCUS, imeFocus);
-        b.putBoolean(K_IME_WINDOW, imeWindow);
         return b;
     }
 
@@ -113,11 +83,6 @@ public final class Config {
         d.captureAltTab = b.getBoolean(K_ALT_TAB, d.captureAltTab);
         d.captureAltSpecial = b.getBoolean(K_ALT_SPECIAL, d.captureAltSpecial);
         d.captureShift = b.getBoolean(K_SHIFT, d.captureShift);
-        d.imeSuppress = b.getBoolean(K_IME, d.imeSuppress);
-        d.imeViewExt = b.getBoolean(K_IME_VIEWEXT, d.imeViewExt);
-        d.imeShowSoftInput = b.getBoolean(K_IME_SHOW, d.imeShowSoftInput);
-        d.imeFocus = b.getBoolean(K_IME_FOCUS, d.imeFocus);
-        d.imeWindow = b.getBoolean(K_IME_WINDOW, d.imeWindow);
         return d;
     }
 }
