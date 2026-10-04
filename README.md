@@ -66,21 +66,18 @@
 - **修饰键**：因为吞掉了 `Win` 的 Shift/Meta down，系统不再维护 metaState，所以无障碍服务自己维护
   `Meta/Alt/Ctrl/Shift` 状态，转发前用 `new KeyEvent(...)` 合成回事件，保证组合键正确。
 
-## ⌨️ 外接键盘时不再弹软键盘
+## ⌨️ 外接键盘弹软键盘？
 
-Android 有个系统安全设置 **`show_ime_with_hard_keyboard`**：它为 `1` 时，系统会在外接键盘、
-又有可编辑控件聚焦时**自动弹出虚拟键盘**。该判断发生在 **system_server**，App 端 Hook 拦不住。
+这是 **ColorOS 自带输入法**在接管外接键盘时弹出的悬浮窗，属于系统/输入法行为，App 端 Hook 拦不住。
 
-模块 App 里提供了：
-- 显示该设置当前值
-- 通过 **Shizuku** 一键设为 `0`（打开 App 会自动申请 Shizuku 权限）
-- 跳转「物理键盘设置」手动关闭
-
-也可以直接用 ADB：
+**解决办法（推荐）**：安装并使用一个**第三方输入法**（如 Gboard），就不会再弹。
+也可以打开系统「物理键盘设置」关闭「显示虚拟键盘」，或执行：
 
 ```bash
 adb shell settings put secure show_ime_with_hard_keyboard 0
 ```
+
+模块界面里会显示该设置当前值，并提供跳转「物理键盘设置」的按钮。
 
 ## 🏗️ 构建
 
@@ -104,7 +101,6 @@ adb shell settings put secure show_ime_with_hard_keyboard 0
 
 - [LSPatch](https://github.com/JingMatrix/LSPatch) — 免 Root 的 Xposed 框架
 - [DexKit](https://github.com/LuckyPray/DexKit) — 运行时 dex 查询
-- [Shizuku](https://github.com/RikkaApps/Shizuku) — 以 shell/root 身份执行系统设置
 
 ## 🛡️ 免责声明
 
