@@ -2,6 +2,7 @@ package io.github.pingdongyi.rdpkeybridge;
 
 import android.app.Activity;
 import android.app.AppOpsManager;
+import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -186,16 +187,22 @@ public class MainActivity extends Activity {
         if (mRestrictInfo != null) {
             String r;
             try {
-                AppOpsManager aom = getSystemService(AppOpsManager.class);
-                int mode = aom.unsafeCheckOpNoThrow("android:access_restricted_settings",
-                        Process.myUid(), getPackageName());
+                AppOpsManager aom = (AppOpsManager) getSystemService(Context.APP_OPS_SERVICE);
+                int mode;
+                try {
+                    mode = aom.unsafeCheckOpNoThrow("android:access_restricted_settings",
+                            Process.myUid(), getPackageName());
+                } catch (Throwable t1) {
+                    mode = aom.checkOpNoThrow("android:access_restricted_settings",
+                            Process.myUid(), getPackageName());
+                }
                 // MODE_ALLOWED=0, MODE_IGNORED=1, MODE_ERRORED=2, MODE_DEFAULT=3
                 r = "access_restricted_settings = " + mode
                         + (mode == AppOpsManager.MODE_ALLOWED
                         ? "（已允许受限设置）"
                         : "（未允许/默认，应用信息里应有『允许受限设置』）");
             } catch (Throwable t) {
-                r = "access_restricted_settings: 读取失败";
+                r = "access_restricted_settings 读取失败：" + t;
             }
             mRestrictInfo.setText(r);
         }
