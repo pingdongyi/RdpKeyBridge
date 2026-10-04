@@ -15,6 +15,7 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
 
     private TextView mStatus;
+    private TextView mKbInfo;
     private CheckBox cbDebug, cbCapture, cbMeta, cbAltTab, cbAltSpecial, cbShift;
     private CheckBox cbIme, cbImeViewExt, cbImeShow, cbImeFocus, cbImeWindow;
 
@@ -41,6 +42,38 @@ public class MainActivity extends Activity {
             }
         });
         root.addView(a11y);
+
+        // ---- 系统级：外接键盘时是否显示虚拟键盘 ----
+        mKbInfo = new TextView(this);
+        root.addView(mKbInfo);
+
+        Button openHardKb = new Button(this);
+        openHardKb.setText("打开物理键盘设置");
+        openHardKb.setOnClickListener(v -> {
+            try {
+                startActivity(new Intent("android.settings.HARD_KEYBOARD_SETTINGS"));
+            } catch (Throwable t) {
+                try {
+                    startActivity(new Intent(Settings.ACTION_INPUT_METHOD_SETTINGS));
+                } catch (Throwable ignored) {
+                }
+            }
+        });
+        root.addView(openHardKb);
+
+        Button setKb = new Button(this);
+        setKb.setText("尝试设为 0（需 ADB 授权 WRITE_SECURE_SETTINGS）");
+        setKb.setOnClickListener(v -> {
+            try {
+                Settings.Secure.putInt(getContentResolver(),
+                        "show_ime_with_hard_keyboard", 0);
+                Toast.makeText(this, "已设为 0", Toast.LENGTH_SHORT).show();
+            } catch (Throwable t) {
+                Toast.makeText(this, "失败：" + t.getMessage(), Toast.LENGTH_LONG).show();
+            }
+            refreshStatus();
+        });
+        root.addView(setKb);
 
         cbCapture = add(root, "启用按键接管（总开关）");
         cbMeta = add(root, "接管 Win 键及其组合（如 Win+E）");
@@ -130,5 +163,17 @@ public class MainActivity extends Activity {
     private void refreshStatus() {
         mStatus.setText(AccessibilityKeyService.isEnabled(this)
                 ? R.string.status_on : R.string.status_off);
+        if (mKbInfo != null) {
+            int v = -1;
+            try {
+                v = Settings.Secure.getInt(getContentResolver(),
+                        "show_ime_with_hard_keyboard", -1);
+            } catch (Throwable ignored) {
+            }
+            String note = (v == 1)
+                    ? " ← 开启中：外接键盘会弹软键盘，建议关掉"
+                    : (v == 0 ? " ← 已关闭（正常）" : " ← 读不到，请手动确认");
+            mKbInfo.setText("show_ime_with_hard_keyboard = " + v + note);
+        }
     }
 }
