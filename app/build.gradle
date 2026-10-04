@@ -41,4 +41,6 @@ android {
 dependencies {
     compileOnly 'de.robv.android.xposed:api:82'
     implementation libs.dexkit
+    // DexKit 的 Kotlin API 需要 kotlin-stdlib 参与编译（其 POM 中为 runtime scope）
+    implementation libs.kotlin.stdlib
 }
