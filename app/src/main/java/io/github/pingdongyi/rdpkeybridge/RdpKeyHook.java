@@ -1,5 +1,6 @@
 package io.github.pingdongyi.rdpkeybridge;
 
+import android.app.Activity;
 import android.app.Application;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -9,6 +10,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.KeyEvent;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.view.inputmethod.InputMethodManager;
 
 import java.lang.reflect.Method;
@@ -116,12 +119,14 @@ public final class RdpKeyHook {
         }
         hookInputMethodManager(fwd);
         hookViewExt(lp);
+        hookSoftInputMode();
     }
 
     /**
      * RDP 用 {@code com.microsoft.windowsapp.input.ext.ViewExtKt.a(View, boolean)}
-     * 通过 WindowInsetsControllerCompat 主动 show/hide 系统输入法（Android 14 走 WindowInsetsController，
-     * 所以 hook InputMethodManager 拦不住）。这里把该方法的 boolean 强制为 false（隐藏）。
+     * 通过 WindowInsetsControllerCompat 主动 show/hide 系统输入法
+     * （boolean=true=show，内部走 WindowInsetsController.show(Type.ime())）。
+     * 这里在 show 时直接跳过该方法，彻底不弹键盘。
      */
     private static void hookViewExt(XC_LoadPackage.LoadPackageParam lp) {
         try {
@@ -137,13 +142,48 @@ public final class RdpKeyHook {
                         new XC_MethodHook() {
                             @Override
                             protected void beforeHookedMethod(MethodHookParam param) {
-                                param.args[1] = false;
+                                if (Boolean.TRUE.equals(param.args[1])) {
+                                    // 想显示输入法 -> 直接不执行
+                                    param.setResult(null);
+                                }
                             }
                         });
-                XposedBridge.log(TAG + ": hooked IME visibility " + viewExt.getName() + "#" + m.getName());
+                XposedBridge.log(TAG + ": hooked IME toggle " + viewExt.getName() + "#" + m.getName());
             }
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": hook ViewExt failed: " + t);
+        }
+    }
+
+    /** 强制窗口的 softInputMode 为 stateAlwaysHidden，避免系统在聚焦/输入时自动弹软键盘。 */
+    private static void hookSoftInputMode() {
+        try {
+            XposedHelpers.findAndHookMethod(Window.class, "setSoftInputMode", int.class,
+                    new XC_MethodHook() {
+                        @Override
+                        protected void beforeHookedMethod(MethodHookParam param) {
+                            int mode = (Integer) param.args[0];
+                            mode = (mode & ~0xF) | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN;
+                            param.args[0] = mode;
+                        }
+                    });
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": hook setSoftInputMode failed: " + t);
+        }
+        try {
+            XposedHelpers.findAndHookMethod(Activity.class, "onResume", new XC_MethodHook() {
+                @Override
+                protected void afterHookedMethod(MethodHookParam param) {
+                    try {
+                        Activity a = (Activity) param.thisObject;
+                        a.getWindow().setSoftInputMode(
+                                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+                    } catch (Throwable ignored) {
+                    }
+                }
+            });
+        } catch (Throwable t) {
+            XposedBridge.log(TAG + ": hook Activity.onResume failed: " + t);
         }
     }
 
