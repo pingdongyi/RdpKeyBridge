@@ -80,7 +80,8 @@ public class AccessibilityKeyService extends AccessibilityService {
             return false;
         }
         boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
-        updateModifiers(event.getKeyCode(), down);
+        int keyCode = event.getKeyCode();
+        updateModifiers(keyCode, down);
 
         boolean target = KeyRelay.isTarget(mFocusedPkg);
         if (!target) {
@@ -88,7 +89,8 @@ public class AccessibilityKeyService extends AccessibilityService {
         }
 
         boolean captured = capture(event);
-        if (DEBUG) {
+        // 诊断：修饰键（Shift/Alt/Ctrl/Win）总是记录，其余键仅在 DEBUG 下记录
+        if (DEBUG || isModifier(keyCode)) {
             diag(event, captured);
         }
         if (captured) {
@@ -96,6 +98,22 @@ public class AccessibilityKeyService extends AccessibilityService {
             return true;
         }
         return false;
+    }
+
+    private static boolean isModifier(int keyCode) {
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_SHIFT_LEFT:
+            case KeyEvent.KEYCODE_SHIFT_RIGHT:
+            case KeyEvent.KEYCODE_ALT_LEFT:
+            case KeyEvent.KEYCODE_ALT_RIGHT:
+            case KeyEvent.KEYCODE_CTRL_LEFT:
+            case KeyEvent.KEYCODE_CTRL_RIGHT:
+            case KeyEvent.KEYCODE_META_LEFT:
+            case KeyEvent.KEYCODE_META_RIGHT:
+                return true;
+            default:
+                return false;
+        }
     }
 
     private void updateModifiers(int keyCode, boolean down) {

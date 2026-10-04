@@ -119,14 +119,12 @@ public final class RdpKeyHook {
         }
         hookInputMethodManager(fwd);
         hookViewExt(lp);
-        hookSoftInputMode();
     }
 
     /**
      * RDP 用 {@code com.microsoft.windowsapp.input.ext.ViewExtKt.a(View, boolean)}
-     * 通过 WindowInsetsControllerCompat 主动 show/hide 系统输入法
-     * （boolean=true=show，内部走 WindowInsetsController.show(Type.ime())）。
-     * 这里在 show 时直接跳过该方法，彻底不弹键盘。
+     * 通过 WindowInsetsControllerCompat 主动 show/hide 系统输入法（boolean=true=show，
+     * 内部走 WindowInsetsController.show(Type.ime())）。这里在 show 时直接跳过该方法。
      */
     private static void hookViewExt(XC_LoadPackage.LoadPackageParam lp) {
         try {
@@ -155,7 +153,11 @@ public final class RdpKeyHook {
         }
     }
 
-    /** 强制窗口的 softInputMode 为 stateAlwaysHidden，避免系统在聚焦/输入时自动弹软键盘。 */
+    /**
+     * 强制窗口的 softInputMode 为 stateAlwaysHidden。
+     * 注意：这是全 App 级改动，容易引入回归，默认关闭。
+     */
+    @SuppressWarnings("unused")
     private static void hookSoftInputMode() {
         try {
             XposedHelpers.findAndHookMethod(Window.class, "setSoftInputMode", int.class,
@@ -204,18 +206,9 @@ public final class RdpKeyHook {
         } catch (Throwable t) {
             XposedBridge.log(TAG + ": hook ForwardEditText ctor failed: " + t);
         }
-        // 2) 若 App 之后又打开，强制改回 false
-        try {
-            XposedHelpers.findAndHookMethod(fwdClass, "setShowSoftInputOnFocus", boolean.class,
-                    new XC_MethodHook() {
-                        @Override
-                        protected void beforeHookedMethod(MethodHookParam param) {
-                            param.args[0] = false;
-                        }
-                    });
-        } catch (Throwable t) {
-            XposedBridge.log(TAG + ": hook setShowSoftInputOnFocus failed: " + t);
-        }
+        // 2) App 里没有任何地方调用 setShowSoftInputOnFocus，默认 true；
+        //    构造后主动置 false 即可（callMethod 会向上查找父类，能命中 TextView 的实现）
+        //    注意：不能用 findAndHookMethod 直接 hook，否则会 NoSuchMethodError（声明在 TextView 上）
     }
 
     private static void hookInputMethodManager(final String fwdClassName) {
@@ -294,9 +287,10 @@ public final class RdpKeyHook {
         BroadcastReceiver diagReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                if (intent == null || !DEBUG) {
+                if (intent == null) {
                     return;
                 }
+                // diag 只会在「目标前台 + 修饰键」或 DEBUG 时发送
                 XposedBridge.log(TAG + " [a11y] key="
                         + intent.getIntExtra(KeyRelay.EXTRA_CODE, -1)
                         + " down=" + intent.getBooleanExtra(KeyRelay.EXTRA_DOWN, false)
