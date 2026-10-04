@@ -1,12 +1,9 @@
 package io.github.pingdongyi.rdpkeybridge;
 
 import android.app.Activity;
-import android.app.AppOpsManager;
-import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Process;
 import android.provider.Settings;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -22,7 +19,6 @@ public class MainActivity extends Activity {
 
     private TextView mStatus;
     private TextView mKbInfo;
-    private TextView mRestrictInfo;
     private CheckBox cbDebug, cbCapture, cbMeta, cbAltTab, cbAltSpecial, cbShift;
 
     @Override
@@ -50,7 +46,7 @@ public class MainActivity extends Activity {
         root.addView(a11y);
 
         Button appInfo = new Button(this);
-        appInfo.setText("打开「应用信息」（如需『允许受限设置』）");
+        appInfo.setText("打开本应用信息");
         appInfo.setOnClickListener(v -> {
             try {
                 Intent i = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
@@ -60,14 +56,6 @@ public class MainActivity extends Activity {
             }
         });
         root.addView(appInfo);
-
-        TextView a11yHint = new TextView(this);
-        a11yHint.setText("提示：Android 13+ 侧载应用的无障碍服务可能受「受限设置」限制。"
-                + "若开启后又被自动关闭，请到「应用信息」右上角菜单点『允许受限设置』，再重新开启无障碍。");
-        root.addView(a11yHint);
-
-        mRestrictInfo = new TextView(this);
-        root.addView(mRestrictInfo);
 
         root.addView(divider("按键接管"));
         cbCapture = add(root, "启用按键接管（总开关）");
@@ -183,28 +171,5 @@ public class MainActivity extends Activity {
                 ? "（系统开着：更容易弹软键盘）"
                 : (v == 0 ? "（系统已关）" : "（读不到）");
         mKbInfo.setText(KEY_SHOW_IME_WITH_HARD_KEYBOARD + " = " + v + note);
-
-        if (mRestrictInfo != null) {
-            String r;
-            try {
-                AppOpsManager aom = (AppOpsManager) getSystemService(Context.APP_OPS_SERVICE);
-                int mode;
-                try {
-                    mode = aom.unsafeCheckOpNoThrow("android:access_restricted_settings",
-                            Process.myUid(), getPackageName());
-                } catch (Throwable t1) {
-                    mode = aom.checkOpNoThrow("android:access_restricted_settings",
-                            Process.myUid(), getPackageName());
-                }
-                // MODE_ALLOWED=0, MODE_IGNORED=1, MODE_ERRORED=2, MODE_DEFAULT=3
-                r = "access_restricted_settings = " + mode
-                        + (mode == AppOpsManager.MODE_ALLOWED
-                        ? "（已允许受限设置）"
-                        : "（未允许/默认，应用信息里应有『允许受限设置』）");
-            } catch (Throwable t) {
-                r = "access_restricted_settings 读取失败：" + t;
-            }
-            mRestrictInfo.setText(r);
-        }
     }
 }
